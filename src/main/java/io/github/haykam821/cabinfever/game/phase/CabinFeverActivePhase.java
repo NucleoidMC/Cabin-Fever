@@ -1,6 +1,7 @@
 package io.github.haykam821.cabinfever.game.phase;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -8,12 +9,18 @@ import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
 import io.github.haykam821.cabinfever.game.CabinFeverConfig;
 import io.github.haykam821.cabinfever.game.map.CabinFeverMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.BlockPredicatesChecker;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.predicate.BlockPredicate;
+import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -29,16 +36,18 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameCloseReason;
-import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
-import xyz.nucleoid.plasmid.game.player.PlayerOffer;
-import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
-import xyz.nucleoid.plasmid.game.rule.GameRuleType;
-import xyz.nucleoid.plasmid.util.ItemStackBuilder;
-import xyz.nucleoid.plasmid.util.PlayerRef;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameCloseReason;
+import xyz.nucleoid.plasmid.api.game.GameSpace;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
+import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
+import xyz.nucleoid.plasmid.api.util.ItemStackBuilder;
+import xyz.nucleoid.plasmid.api.util.PlayerRef;
+import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.block.BlockBreakEvent;
 import xyz.nucleoid.stimuli.event.block.BlockUseEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
@@ -78,7 +87,7 @@ public class CabinFeverActivePhase {
 	}
 
 	public static void open(GameSpace gameSpace, ServerWorld world, CabinFeverMap map, CabinFeverConfig config, HolderAttachment guide) {
-		Set<PlayerRef> players = gameSpace.getPlayers().stream().map(PlayerRef::of).collect(Collectors.toSet());
+		Set<PlayerRef> players = gameSpace.getPlayers().participants().stream().map(PlayerRef::of).collect(Collectors.toSet());
 		CabinFeverActivePhase phase = new CabinFeverActivePhase(gameSpace, world, map, config, guide, players);
 
 		gameSpace.setActivity(activity -> {
@@ -88,7 +97,8 @@ public class CabinFeverActivePhase {
 			activity.listen(BlockBreakEvent.EVENT, phase::onBreakBlock);
 			activity.listen(GameActivityEvents.ENABLE, phase::enable);
 			activity.listen(GameActivityEvents.TICK, phase::tick);
-			activity.listen(GamePlayerEvents.OFFER, phase::offerPlayer);
+			activity.listen(GamePlayerEvents.ACCEPT, phase::onAcceptPlayers);
+			activity.listen(GamePlayerEvents.OFFER, JoinOffer::acceptSpectators);
 			activity.listen(GamePlayerEvents.REMOVE, phase::removePlayer);
 			activity.listen(PlayerDeathEvent.EVENT, phase::onPlayerDeath);
 			activity.listen(BlockUseEvent.EVENT, phase::onUseBlock);
@@ -98,15 +108,22 @@ public class CabinFeverActivePhase {
 	private void enable() {
 		this.singleplayer = this.players.size() == 1;
 
+		RegistryEntryLookup<Block> blocks = this.world.getRegistryManager().getOrThrow(RegistryKeys.BLOCK);
+
 		ItemStack sword = ItemStackBuilder.of(Items.WOODEN_SWORD)
 			.setUnbreakable()
 			.build();
 
 		ItemStack tool = ItemStackBuilder.of(Items.WOODEN_PICKAXE)
 			.setUnbreakable()
-			.addCanDestroy(Blocks.COAL_ORE)
-			.addCanDestroy(Blocks.COAL_BLOCK)
 			.build();
+
+		BlockPredicate predicate = BlockPredicate.Builder.create()
+			.blocks(blocks, Blocks.COAL_ORE, Blocks.COAL_BLOCK)
+			.build();
+
+		BlockPredicatesChecker checker = new BlockPredicatesChecker(List.of(predicate), true);
+		tool.set(DataComponentTypes.CAN_BREAK, checker);
 
  		for (PlayerRef playerRef : this.players) {
 			playerRef.ifOnline(this.world, player -> {
@@ -116,6 +133,11 @@ public class CabinFeverActivePhase {
 				player.giveItemStack(sword.copy());
 				player.giveItemStack(tool.copy());
 			});
+		}
+
+		for (ServerPlayerEntity player : this.gameSpace.getPlayers().spectators()) {
+			CabinFeverActivePhase.spawn(this.world, this.map, player);
+			this.setSpectator(player);
 		}
 	}
 
@@ -191,9 +213,9 @@ public class CabinFeverActivePhase {
 		player.changeGameMode(GameMode.SPECTATOR);
 	}
 
-	private PlayerOfferResult offerPlayer(PlayerOffer offer) {
-		return offer.accept(this.world, this.map.getSpawn()).and(() -> {
-			offer.player().changeGameMode(GameMode.SPECTATOR);
+	private JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
+		return acceptor.teleport(this.world, this.map.getSpawn()).thenRunForEach(player -> {
+			player.changeGameMode(GameMode.SPECTATOR);
 		});
 	}
 
@@ -221,7 +243,7 @@ public class CabinFeverActivePhase {
 		player.playerScreenHandler.onContentChanged(player.getInventory());
 	}
 
-	private ActionResult onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
+	private EventResult onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
 		if (!this.isGameEnding()) {
 			PlayerRef playerRef = PlayerRef.of(player);
 			if (this.players.contains(playerRef)) {
@@ -234,10 +256,10 @@ public class CabinFeverActivePhase {
 		}
 
 		CabinFeverActivePhase.spawn(this.world, this.map, player);
-		return ActionResult.FAIL;
+		return EventResult.DENY;
 	}
 
-	private ActionResult onBreakBlock(ServerPlayerEntity player, ServerWorld world, BlockPos pos) {
+	private EventResult onBreakBlock(ServerPlayerEntity player, ServerWorld world, BlockPos pos) {
 		if (!this.isGameEnding()) {
 			BlockState state = world.getBlockState(pos);
 
@@ -251,7 +273,7 @@ public class CabinFeverActivePhase {
 			}
 		}
 
-		return ActionResult.FAIL;
+		return EventResult.DENY;
 	}
 
 	private ActionResult onUseBlock(ServerPlayerEntity player, Hand hand, BlockHitResult hitResult) {
@@ -266,7 +288,7 @@ public class CabinFeverActivePhase {
 					this.coalAmounts.addTo(playerRef, Math.min(heldCoal, coalUntilMax));
 					this.clearCoal(player);
 
-					player.playSound(SoundEvents.ENTITY_ITEM_FRAME_ADD_ITEM, SoundCategory.BLOCKS, 1, 1);
+					player.playSoundToPlayer(SoundEvents.ENTITY_ITEM_FRAME_ADD_ITEM, SoundCategory.BLOCKS, 1, 1);
 				}
 			}
 		}
@@ -286,6 +308,6 @@ public class CabinFeverActivePhase {
 
 	public static void spawn(ServerWorld world, CabinFeverMap map, ServerPlayerEntity player) {
 		Vec3d spawn = map.getSpawn();
-		player.teleport(world, spawn.getX(), spawn.getY(), spawn.getZ(), 0, 0);
+		player.teleport(world, spawn.getX(), spawn.getY(), spawn.getZ(), Set.of(), 0, 0, true);
 	}
 }

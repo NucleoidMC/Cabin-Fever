@@ -1,19 +1,20 @@
 package io.github.haykam821.cabinfever.game;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import io.github.haykam821.cabinfever.game.map.CabinFeverMapConfig;
 import net.minecraft.SharedConstants;
 import net.minecraft.util.math.intprovider.ConstantIntProvider;
 import net.minecraft.util.math.intprovider.IntProvider;
-import xyz.nucleoid.plasmid.game.common.config.PlayerConfig;
+import xyz.nucleoid.plasmid.api.game.common.config.WaitingLobbyConfig;
 
 public class CabinFeverConfig {
-	public static final Codec<CabinFeverConfig> CODEC = RecordCodecBuilder.create(instance -> {
+	public static final MapCodec<CabinFeverConfig> CODEC = RecordCodecBuilder.mapCodec(instance -> {
 		return instance.group(
 			CabinFeverMapConfig.CODEC.fieldOf("map").forGetter(CabinFeverConfig::getMapConfig),
-			PlayerConfig.CODEC.fieldOf("players").forGetter(CabinFeverConfig::getPlayerConfig),
+			WaitingLobbyConfig.CODEC.fieldOf("players").forGetter(CabinFeverConfig::getPlayerConfig),
 			IntProvider.NON_NEGATIVE_CODEC.optionalFieldOf("ticks_until_close", ConstantIntProvider.create(SharedConstants.TICKS_PER_SECOND * 5)).forGetter(CabinFeverConfig::getTicksUntilClose),
 			Codec.INT.optionalFieldOf("guide_ticks", 20 * 30).forGetter(CabinFeverConfig::getGuideTicks),
 			Codec.INT.optionalFieldOf("max_coal", 32).forGetter(CabinFeverConfig::getMaxCoal),
@@ -23,14 +24,14 @@ public class CabinFeverConfig {
 	});
 
 	private final CabinFeverMapConfig mapConfig;
-	private final PlayerConfig playerConfig;
+	private final WaitingLobbyConfig playerConfig;
 	private final IntProvider ticksUntilClose;
 	private final int guideTicks;
 	private final int maxCoal;
 	private final int maxHeldCoal;
 	private final int deathPrice;
 
-	public CabinFeverConfig(CabinFeverMapConfig mapConfig, PlayerConfig playerConfig, IntProvider ticksUntilClose, int guideTicks, int maxCoal, int maxHeldCoal, int deathPrice) {
+	public CabinFeverConfig(CabinFeverMapConfig mapConfig, WaitingLobbyConfig playerConfig, IntProvider ticksUntilClose, int guideTicks, int maxCoal, int maxHeldCoal, int deathPrice) {
 		this.mapConfig = mapConfig;
 		this.playerConfig = playerConfig;
 		this.ticksUntilClose = ticksUntilClose;
@@ -44,7 +45,7 @@ public class CabinFeverConfig {
 		return this.mapConfig;
 	}
 
-	public PlayerConfig getPlayerConfig() {
+	public WaitingLobbyConfig getPlayerConfig() {
 		return this.playerConfig;
 	}
 
