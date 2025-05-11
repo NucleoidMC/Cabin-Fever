@@ -122,7 +122,7 @@ public class CabinFeverActivePhase {
 			.blocks(blocks, Blocks.COAL_ORE, Blocks.COAL_BLOCK)
 			.build();
 
-		BlockPredicatesChecker checker = new BlockPredicatesChecker(List.of(predicate), true);
+		BlockPredicatesChecker checker = new BlockPredicatesChecker(List.of(predicate));
 		tool.set(DataComponentTypes.CAN_BREAK, checker);
 
  		for (PlayerRef playerRef : this.players) {
