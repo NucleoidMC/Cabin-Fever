@@ -6,8 +6,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import io.github.haykam821.cabinfever.game.map.CabinFeverMapConfig;
 import net.minecraft.SharedConstants;
-import net.minecraft.util.math.intprovider.ConstantIntProvider;
-import net.minecraft.util.math.intprovider.IntProvider;
+import net.minecraft.util.valueproviders.ConstantInt;
+import net.minecraft.util.valueproviders.IntProvider;
+import net.minecraft.util.valueproviders.IntProviders;
 import xyz.nucleoid.plasmid.api.game.common.config.WaitingLobbyConfig;
 
 public class CabinFeverConfig {
@@ -15,7 +16,7 @@ public class CabinFeverConfig {
 		return instance.group(
 			CabinFeverMapConfig.CODEC.fieldOf("map").forGetter(CabinFeverConfig::getMapConfig),
 			WaitingLobbyConfig.CODEC.fieldOf("players").forGetter(CabinFeverConfig::getPlayerConfig),
-			IntProvider.NON_NEGATIVE_CODEC.optionalFieldOf("ticks_until_close", ConstantIntProvider.create(SharedConstants.TICKS_PER_SECOND * 5)).forGetter(CabinFeverConfig::getTicksUntilClose),
+			IntProviders.NON_NEGATIVE_CODEC.optionalFieldOf("ticks_until_close", ConstantInt.of(SharedConstants.TICKS_PER_SECOND * 5)).forGetter(CabinFeverConfig::getTicksUntilClose),
 			Codec.INT.optionalFieldOf("guide_ticks", 20 * 30).forGetter(CabinFeverConfig::getGuideTicks),
 			Codec.INT.optionalFieldOf("max_coal", 32).forGetter(CabinFeverConfig::getMaxCoal),
 			Codec.INT.optionalFieldOf("max_held_coal", 8).forGetter(CabinFeverConfig::getMaxHeldCoal),

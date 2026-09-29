@@ -1,22 +1,21 @@
 package io.github.haykam821.cabinfever.game.map;
 
 import java.util.Random;
-
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import io.github.haykam821.cabinfever.game.CabinFeverConfig;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.biome.BiomeKeys;
 import xyz.nucleoid.map_templates.MapTemplate;
 
 public class CabinFeverMapBuilder {
-	private static final BlockState FLOOR = Blocks.SNOW_BLOCK.getDefaultState();
-	private static final BlockState CAMPFIRE = Blocks.CAMPFIRE.getDefaultState();
-	private static final BlockState AIR = Blocks.AIR.getDefaultState();
-	private static final BlockState ROOF = Blocks.SPRUCE_SLAB.getDefaultState();
-	private static final BlockState PILLAR = Blocks.COBBLESTONE_WALL.getDefaultState();
-	private static final BlockState COAL_ORE = Blocks.COAL_ORE.getDefaultState();
-	private static final BlockState COAL_BLOCK = Blocks.COAL_BLOCK.getDefaultState();
+	private static final BlockState FLOOR = Blocks.SNOW_BLOCK.defaultBlockState();
+	private static final BlockState CAMPFIRE = Blocks.CAMPFIRE.defaultBlockState();
+	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+	private static final BlockState ROOF = Blocks.SPRUCE_SLAB.defaultBlockState();
+	private static final BlockState PILLAR = Blocks.COBBLESTONE_WALL.defaultBlockState();
+	private static final BlockState COAL_ORE = Blocks.COAL_ORE.defaultBlockState();
+	private static final BlockState COAL_BLOCK = Blocks.COAL_BLOCK.defaultBlockState();
 
 	private final CabinFeverConfig config;
 
@@ -34,13 +33,13 @@ public class CabinFeverMapBuilder {
 		BlockPos center = new BlockPos(mapConfig.getX() / 2, 1, mapConfig.getZ() / 2);
 		this.buildCenter(center, template, mapConfig);
 
-		template.setBiome(BiomeKeys.SNOWY_TAIGA);
+		template.setBiome(Biomes.SNOWY_TAIGA);
 		return new CabinFeverMap(template, center);
 	}
 
 	private void buildLumps(MapTemplate template, CabinFeverMapConfig mapConfig) {
 		Random random = new Random();
-		BlockPos.Mutable pos = new BlockPos.Mutable();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
 		for (int index = 0; index < mapConfig.getLumps(); index++) {
 			int lumpX = random.nextInt(mapConfig.getX() - 6) + 3;
@@ -61,7 +60,7 @@ public class CabinFeverMapBuilder {
 	}
 
 	private void buildFloor(MapTemplate template, CabinFeverMapConfig mapConfig) {
-		BlockPos.Mutable pos = new BlockPos.Mutable();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int x = 0; x < mapConfig.getX(); x++) {
 			pos.setX(x);
 			for (int z = 0; z < mapConfig.getZ(); z++) {
@@ -72,7 +71,7 @@ public class CabinFeverMapBuilder {
 	}
 
 	private void buildCenter(BlockPos center, MapTemplate template, CabinFeverMapConfig mapConfig) {
-		BlockPos.Mutable pos = new BlockPos.Mutable();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int x = -2; x < 3; x++) {
 			for (int z = -2; z < 3; z++) {
 				for (int y = 1; y < 6; y++) {

@@ -7,16 +7,18 @@ import eu.pb4.polymer.virtualentity.api.elements.TextDisplayElement;
 import io.github.haykam821.cabinfever.game.CabinFeverConfig;
 import io.github.haykam821.cabinfever.game.map.CabinFeverMap;
 import io.github.haykam821.cabinfever.game.map.CabinFeverMapBuilder;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.decoration.DisplayEntity.BillboardMode;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import xyz.nucleoid.fantasy.RuntimeWorldConfig;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.clock.WorldClocks;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Display.BillboardConstraints;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
+import xyz.nucleoid.fantasy.Fantasy;
+import xyz.nucleoid.fantasy.RuntimeLevelConfig;
 import xyz.nucleoid.plasmid.api.game.GameOpenContext;
 import xyz.nucleoid.plasmid.api.game.GameOpenProcedure;
 import xyz.nucleoid.plasmid.api.game.GameResult;
@@ -33,20 +35,20 @@ import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
 public class CabinFeverWaitingPhase {
-	private static final Formatting GUIDE_FORMATTING = Formatting.GOLD;
-	private static final Text GUIDE_TEXT = Text.empty()
-		.append(Text.translatable("gameType.cabinfever.cabin_fever").formatted(Formatting.BOLD))
-		.append(ScreenTexts.LINE_BREAK)
-		.append(Text.translatable("text.cabinfever.guide"))
-		.formatted(GUIDE_FORMATTING);
+	private static final ChatFormatting GUIDE_FORMATTING = ChatFormatting.GOLD;
+	private static final Component GUIDE_TEXT = Component.empty()
+		.append(Component.translatable("gameType.cabinfever.cabin_fever").withStyle(ChatFormatting.BOLD))
+		.append(CommonComponents.NEW_LINE)
+		.append(Component.translatable("text.cabinfever.guide"))
+		.withStyle(GUIDE_FORMATTING);
 
 	private final GameSpace gameSpace;
-	private final ServerWorld world;
+	private final ServerLevel world;
 	private final CabinFeverMap map;
 	private final CabinFeverConfig config;
 	private HolderAttachment guideText;
 
-	public CabinFeverWaitingPhase(GameSpace gameSpace, ServerWorld world, CabinFeverMap map, CabinFeverConfig config) {
+	public CabinFeverWaitingPhase(GameSpace gameSpace, ServerLevel world, CabinFeverMap map, CabinFeverConfig config) {
 		this.gameSpace = gameSpace;
 		this.world = world;
 		this.map = map;
@@ -57,12 +59,15 @@ public class CabinFeverWaitingPhase {
 		CabinFeverMapBuilder mapBuilder = new CabinFeverMapBuilder(context.config());
 		CabinFeverMap map = mapBuilder.create();
 
-		RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
+		RuntimeLevelConfig worldConfig = new RuntimeLevelConfig()
+				.setDimensionType(Fantasy.DEFAULT_OVERWORLD_DIM_TYPE)
 			.setGenerator(map.createGenerator(context.server()))
-			.setRaining(true)
-			.setTimeOfDay(18000);
+			.setClockTime(WorldClocks.OVERWORLD, 18000);
 
-		return context.openWithWorld(worldConfig, (activity, world) -> {
+		return context.openWithLevel(worldConfig, (activity, world) -> {
+			world.setRainLevel(1);
+			world.getWeatherData().setRaining(true);
+			world.getWeatherData().setClearWeatherTime(Integer.MAX_VALUE);
 			CabinFeverWaitingPhase phase = new CabinFeverWaitingPhase(activity.getGameSpace(), world, map, context.config());
 			GameWaitingLobby.addTo(activity, context.config().getPlayerConfig());
 
@@ -81,7 +86,7 @@ public class CabinFeverWaitingPhase {
 
 	private JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
 		return acceptor.teleport(this.world, this.map.getSpawn()).thenRunForEach(player -> {
-			player.changeGameMode(GameMode.ADVENTURE);
+			player.setGameMode(GameType.ADVENTURE);
 		});
 	}
 
@@ -90,11 +95,11 @@ public class CabinFeverWaitingPhase {
 		return GameResult.ok();
 	}
 
-	private EventResult onPlayerDamage(ServerPlayerEntity player, DamageSource source, float amount) {
+	private EventResult onPlayerDamage(ServerPlayer player, DamageSource source, float amount) {
 		return EventResult.DENY;
 	}
 
-	private EventResult onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
+	private EventResult onPlayerDeath(ServerPlayer player, DamageSource source) {
 		CabinFeverActivePhase.spawn(this.world, this.map, player);
 		return EventResult.DENY;
 	}
@@ -102,14 +107,14 @@ public class CabinFeverWaitingPhase {
 	private void enable() {
 		TextDisplayElement element = new TextDisplayElement(GUIDE_TEXT);
 
-		element.setBillboardMode(BillboardMode.CENTER);
+		element.setBillboardMode(BillboardConstraints.CENTER);
 		element.setLineWidth(350);
 
 		ElementHolder holder = new ElementHolder();
 		holder.addElement(element);
 
 		// Spawn guide text
-		Vec3d center = Vec3d.of(this.map.getCenter()).add(0.5, 1, 0.5);
+		Vec3 center = Vec3.atLowerCornerOf(this.map.getCenter()).add(0.5, 1, 0.5);
 		this.guideText = ChunkAttachment.of(holder, world, center);
 	}
 }

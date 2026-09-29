@@ -1,28 +1,28 @@
 package io.github.haykam821.cabinfever.game.map;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.gen.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.phys.Vec3;
 import xyz.nucleoid.map_templates.MapTemplate;
-import xyz.nucleoid.plasmid.api.game.world.generator.TemplateChunkGenerator;
+import xyz.nucleoid.plasmid.api.game.level.generator.TemplateChunkGenerator;
 
 public class CabinFeverMap {
 	private final MapTemplate template;
 	private final BlockPos center;
-	private final Vec3d spawn;
+	private final Vec3 spawn;
 
 	public CabinFeverMap(MapTemplate template, BlockPos center) {
 		this.template = template;
 		this.center = center;
-		this.spawn = new Vec3d(this.center.getX() + 0.5, 1, this.center.getZ() + 1.5);
+		this.spawn = new Vec3(this.center.getX() + 0.5, 1, this.center.getZ() + 1.5);
 	}
 
 	public BlockPos getCenter() {
 		return this.center;
 	}
 
-	public Vec3d getSpawn() {
+	public Vec3 getSpawn() {
 		return this.spawn;
 	}
 
